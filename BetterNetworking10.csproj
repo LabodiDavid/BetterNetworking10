@@ -1,0 +1,165 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>DIT.BetterNetworking10</AssemblyName>
+    <RootNamespace>DIT.BetterNetworking10</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+
+    <PluginVersion>1.0</PluginVersion>
+    <Version>$(PluginVersion)</Version>
+    <AssemblyVersion>$(PluginVersion).0</AssemblyVersion>
+    <FileVersion>$(PluginVersion).0</FileVersion>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+
+    <ValheimPath>D:\SteamLibrary\steamapps\common\Valheim</ValheimPath>
+    <R2ProfileName>Default</R2ProfileName>
+
+    <R2BasePath>$(APPDATA)\r2modmanPlus-local\Valheim\profiles\$(R2ProfileName)</R2BasePath>
+    <BepInExPath>$(R2BasePath)\BepInEx</BepInExPath>
+    <PluginPath>$(BepInExPath)\plugins\BetterNetworking_Valheim</PluginPath>
+    <ValheimManagedPath>$(ValheimPath)\valheim_Data\Managed</ValheimManagedPath>
+
+    <SolutionDir Condition="'$(SolutionDir)' == '' Or '$(SolutionDir)' == '*Undefined*'">$(MSBuildProjectDirectory)\</SolutionDir>
+    <UseLocalLibs Condition="'$(OS)' != 'Windows_NT'">true</UseLocalLibs>
+    <DeployToR2Modman Condition="'$(DeployToR2Modman)' == ''">true</DeployToR2Modman>
+    <BuildThunderstorePackage Condition="'$(BuildThunderstorePackage)' == ''">true</BuildThunderstorePackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Costura.Fody" Version="5.7.0">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Fody" Version="6.9.3">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net472" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="System.Memory" Version="4.5.5" />
+    <PackageReference Include="ZstdSharp.Port" Version="0.8.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="dict\small" LogicalName="DIT.BetterNetworking10.dict.small" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(BepInExPath)\core\BepInEx.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\BepInEx.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="0Harmony">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(BepInExPath)\core\0Harmony.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="assembly_valheim">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\assembly_valheim.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\assembly_valheim.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="assembly_utils">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\assembly_utils.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\assembly_utils.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="com.rlabrecque.steamworks.net">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\com.rlabrecque.steamworks.net.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\com.rlabrecque.steamworks.net.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="PlayFab">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\PlayFab.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\PlayFab.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="PlayFabParty">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\PlayFabParty.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\PlayFabParty.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\UnityEngine.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\UnityEngine.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath Condition="'$(UseLocalLibs)' != 'true'">$(ValheimManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+      <HintPath Condition="'$(UseLocalLibs)' == 'true'">libs\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>PluginVersion</_Parameter1>
+      <_Parameter2>$(PluginVersion)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <Target Name="GenerateVersionInfo" BeforeTargets="BeforeCompile">
+    <WriteLinesToFile
+      File="$(IntermediateOutputPath)VersionInfo.cs"
+      Overwrite="true"
+      Lines="namespace DIT.BetterNetworking10 { internal static class VersionInfo { public const string Version = &quot;$(PluginVersion)&quot;%3B } }" />
+
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)VersionInfo.cs" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="CopyToR2Modman"
+          AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' And '$(DeployToR2Modman)' == 'true'">
+    <MakeDir Directories="$(PluginPath)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginPath)" />
+  </Target>
+
+  <Target Name="CreateThunderstorePackage"
+          AfterTargets="Build"
+          Condition="'$(OS)' == 'Windows_NT' And '$(BuildThunderstorePackage)' == 'true'">
+
+    <PropertyGroup>
+      <PackageRoot>$(SolutionDir)dist\BetterNetworking_Valheim</PackageRoot>
+      <PackagePlugins>$(PackageRoot)\plugins\BetterNetworking_Valheim</PackagePlugins>
+      <PackageZip>$(SolutionDir)dist\BetterNetworking_Valheim-$(PluginVersion).zip</PackageZip>
+    </PropertyGroup>
+
+    <RemoveDir Directories="$(PackageRoot)" />
+
+    <MakeDir Directories="$(PackageRoot)" />
+    <MakeDir Directories="$(PackagePlugins)" />
+
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PackagePlugins)" />
+
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\README.md" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\CHANGELOG.md" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\TESTING.md" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\BUILDINFO.md" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\LICENSE" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\THIRD-PARTY-NOTICES.md" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\DIT.BetterNetworking10.cfg.example" DestinationFolder="$(PackageRoot)" />
+    <Copy SourceFiles="$(MSBuildProjectDirectory)\icon.png" DestinationFolder="$(PackageRoot)" />
+
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;(Get-Content '$(MSBuildProjectDirectory)\manifest.json' -Raw).Replace('__VERSION__', '$(PluginVersion)') | Set-Content '$(PackageRoot)\manifest.json' -Encoding UTF8&quot;" />
+
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;if (Test-Path '$(PackageZip)') { Remove-Item '$(PackageZip)' -Force }; Compress-Archive -Path '$(PackageRoot)\*' -DestinationPath '$(PackageZip)' -Force&quot;" />
+  </Target>
+
+</Project>

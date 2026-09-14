@@ -1,0 +1,24 @@
+[00 - Compatibility]
+Mode = Balanced
+
+[01 - Features]
+Compression = true
+Queue Size = true
+Update Rate = true
+Steam Send Rate = true
+New Connection ZDO Buffer = false
+
+[02 - Networking]
+Queue Size = KB32
+Update Rate = Percent100
+
+[03 - Steamworks]
+Minimum Send Rate = KB256
+Maximum Send Rate = KB1024
+
+[04 - Dedicated Server]
+Force Crossplay = Vanilla
+Player Limit = 10
+
+[99 - Logging]
+Log Level = Message
