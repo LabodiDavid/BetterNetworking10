@@ -1,13 +1,15 @@
-# Better Networking 1.0 Safe
+# Better Networking - Valheim 1.0
 
 An updated networking mod for **Valheim 1.0**, based on
 [CW-Jesse's Better Networking](https://github.com/CW-Jesse/valheim-betternetworking).
 
-This is not an official continuation of the original project. It is a compatibility-focused fork built and checked against **Valheim 1.0.12** (`network version 40`).
+This is not an official continuation of the original project. It is a compatibility-focused fork built and checked/tested against **Valheim 1.0.12** (`network version 40`).
 
 ## Do you need this on Valheim 1.0?
 
-Not always.
+Not always. If you have network issues give it a try. It can compress network traffic maybe it help a bit.
+Install on both on the clients and on the server too.
+The mod has some improvements in the but you can configure to only compress the network data with the VanillaSafe setting.
 
 Valheim 1.0 can work perfectly well without a networking mod, especially with one or two players and stable connections. Start with vanilla networking if your server has no noticeable lag or desync.
 
@@ -23,7 +25,8 @@ It cannot fix every multiplayer problem. Valheim distributes parts of world simu
 
 ## Why was a new build needed?
 
-The commonly available tibijczyk release describes itself as a rebuild of the old mod for Valheim `0.221.10`. Valheim 1.0 changed relevant networking code, while that rebuild kept the original patch logic.
+The commonly available tibijczyk release describes itself as a rebuild of the old mod for Valheim `0.221.10`. 
+Valheim 1.0 changed relevant networking code, while that rebuild kept the original patch logic.
 
 Simply recompiling the old source is not enough because:
 
@@ -44,7 +47,7 @@ This fork updates those paths instead of only rebuilding the old DLL.
 - Uses a separate buffer for every connection when that feature is enabled.
 - Verifies sensitive IL patterns before modifying them.
 - Logs every patch as `PATCH OK`, `PATCH SKIP` or `PATCH FAILED`.
-- Provides a `VanillaSafe` mode for troubleshooting.
+- Provides a `VanillaSafe` mode for troubleshooting/only compressing without any changes in the networking.
 
 ## Installation
 
@@ -99,28 +102,6 @@ Update Rate = Percent100
 `Steam Send Rate` affects Steamworks connections only. It does not affect PlayFab/crossplay networking.
 
 All networking feature changes should be followed by a full server and client restart.
-
-## Portal ghost or desync troubleshooting
-
-If another player remains visually stuck at the departure portal, first switch the server and every client to:
-
-```ini
-[00 - Compatibility]
-Mode = VanillaSafe
-```
-
-`VanillaSafe` disables the queue-budget, update-rate, Steam send-rate and connection-buffer patches. Only negotiated compression remains active.
-
-If the problem still occurs, also disable compression:
-
-```ini
-[01 - Features]
-Compression = false
-```
-
-Restart everything and test again. At that point the mod leaves gameplay networking unchanged unless the dedicated-server player limit or crossplay setting was modified. If the issue remains, Better Networking is probably not the cause.
-
-The included `TESTING.md` contains a repeatable two-player portal test.
 
 ## Startup log
 
