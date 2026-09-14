@@ -150,7 +150,6 @@
 
     <Copy SourceFiles="$(MSBuildProjectDirectory)\README.md" DestinationFolder="$(PackageRoot)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\CHANGELOG.md" DestinationFolder="$(PackageRoot)" />
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\TESTING.md" DestinationFolder="$(PackageRoot)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\BUILDINFO.md" DestinationFolder="$(PackageRoot)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\LICENSE" DestinationFolder="$(PackageRoot)" />
     <Copy SourceFiles="$(MSBuildProjectDirectory)\THIRD-PARTY-NOTICES.md" DestinationFolder="$(PackageRoot)" />
