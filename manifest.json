@@ -1,8 +1,8 @@
 {
   "name": "BetterNetworking_Valheim",
   "version_number": "__VERSION__",
-  "website_url": "",
-  "description": "Valheim 1.0 compatibility fork with guarded patches, legacy config migration, and a safe diagnostic mode.",
+  "website_url": "https://github.com/LabodiDavid/BetterNetworking10",
+  "description": "Improve multiplayer performance using compression, queue size, send rate, and other features. Valheim 1.0 compatibility fork with guarded patches, legacy config migration, and a safe diagnostic mode.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350"
   ]
