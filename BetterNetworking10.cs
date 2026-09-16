@@ -156,8 +156,17 @@ namespace DIT.BetterNetworking10
         {
             if (BetterNetworking10.CompressionActive)
             {
-                CompressionCodec.Initialize();
-                InstallCompression(harmony);
+                try
+                {
+                    CompressionCodec.Initialize();
+                    CompressionFrame.SelfTest();
+                    InstallCompression(harmony);
+                }
+                catch (Exception ex)
+                {
+                    Skip("Compression", $"self-test failed: {ex.GetType().Name}: {ex.Message}");
+                    BetterNetworking10.Log.Error("Compression was left disabled because its startup self-test failed");
+                }
             }
             else
             {

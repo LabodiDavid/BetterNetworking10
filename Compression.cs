@@ -42,8 +42,6 @@ namespace DIT.BetterNetworking10
         {
             byte[] output;
             lock (Sync) output = _compressor.Wrap(input).ToArray();
-            if (BetterNetworking10.Log.IsInfo && input.Length > 256)
-                BetterNetworking10.Log.Info($"Compression sent {input.Length} B -> {output.Length} B ({100f * output.Length / input.Length:0}%)");
             return output;
         }
 
@@ -51,15 +49,100 @@ namespace DIT.BetterNetworking10
         {
             byte[] output;
             lock (Sync) output = _decompressor.Unwrap(input).ToArray();
-            if (BetterNetworking10.Log.IsInfo && output.Length > 256)
-                BetterNetworking10.Log.Info($"Compression received {input.Length} B -> {output.Length} B ({100f * input.Length / output.Length:0}%)");
             return output;
+        }
+    }
+
+    internal static class CompressionFrame
+    {
+        private static readonly byte[] Magic = { 0x42, 0x4E, 0x31, 0x30 }; // BN10
+        private const int HeaderSize = 5;
+        private const byte RawPayload = 0;
+        private const byte CompressedPayload = 1;
+
+        internal static byte[] Encode(byte[] input)
+        {
+            return Encode(input, true);
+        }
+
+        private static byte[] Encode(byte[] input, bool diagnostics)
+        {
+            if (HasHeader(input))
+            {
+                if (diagnostics)
+                    BetterNetworking10.Log.Warning("Prevented duplicate Better Networking compression frame");
+                return input;
+            }
+
+            byte[] compressed = CompressionCodec.Compress(input);
+            bool useCompressed = compressed.Length < input.Length;
+            byte[] payload = useCompressed ? compressed : input;
+            byte[] framed = new byte[HeaderSize + payload.Length];
+            Buffer.BlockCopy(Magic, 0, framed, 0, Magic.Length);
+            framed[Magic.Length] = useCompressed ? CompressedPayload : RawPayload;
+            Buffer.BlockCopy(payload, 0, framed, HeaderSize, payload.Length);
+
+            if (diagnostics && BetterNetworking10.Log.IsInfo && input.Length > 256)
+            {
+                if (useCompressed)
+                    BetterNetworking10.Log.Info($"Compression sent {input.Length} B -> {framed.Length} B ({100f * framed.Length / input.Length:0}%, framed)");
+                else
+                    BetterNetworking10.Log.Info($"Compression bypassed for {input.Length} B packet because it would grow ({framed.Length} B framed)");
+            }
+
+            return framed;
+        }
+
+        internal static bool TryDecode(byte[] input, out byte[] output)
+        {
+            output = null;
+            if (!HasHeader(input)) return false;
+
+            int payloadLength = input.Length - HeaderSize;
+            byte[] payload = new byte[payloadLength];
+            Buffer.BlockCopy(input, HeaderSize, payload, 0, payloadLength);
+
+            byte type = input[Magic.Length];
+            if (type == RawPayload)
+            {
+                output = payload;
+            }
+            else if (type == CompressedPayload)
+            {
+                output = CompressionCodec.Decompress(payload);
+            }
+            else
+            {
+                throw new InvalidDataException($"Unknown Better Networking frame type {type}");
+            }
+
+            if (BetterNetworking10.Log.IsInfo && output.Length > 256)
+                BetterNetworking10.Log.Info($"Compression received {input.Length} B -> {output.Length} B (framed)");
+            return true;
+        }
+
+        internal static bool HasHeader(byte[] input)
+        {
+            if (input == null || input.Length < HeaderSize) return false;
+            for (int i = 0; i < Magic.Length; i++)
+                if (input[i] != Magic[i]) return false;
+            return true;
+        }
+
+        internal static void SelfTest()
+        {
+            byte[] original = Enumerable.Repeat((byte)0x5A, 1024).ToArray();
+            byte[] framed = Encode(original);
+            if (!TryDecode(framed, out byte[] decoded) || !original.SequenceEqual(decoded))
+                throw new InvalidDataException("Compression frame round-trip failed");
+            if (!ReferenceEquals(framed, Encode(framed, false)))
+                throw new InvalidDataException("Compression frame duplicate guard failed");
         }
     }
 
     internal static class CompressionState
     {
-        internal const int ProtocolVersion = 7;
+        internal const int ProtocolVersion = 8;
         private static readonly ConcurrentDictionary<ISocket, PeerState> Peers = new ConcurrentDictionary<ISocket, PeerState>();
 
         internal sealed class PeerState
@@ -68,6 +151,7 @@ namespace DIT.BetterNetworking10
             internal bool Enabled;
             internal volatile bool Sending;
             internal volatile bool Receiving;
+            internal volatile bool WarnedUnframed;
         }
 
         internal static void Add(ISocket socket)
@@ -162,6 +246,7 @@ namespace DIT.BetterNetworking10
             ZNetPeer peer = PeerLookup.ByRpc(rpc);
             if (peer == null || !CompressionState.TryGet(peer.m_socket, out CompressionState.PeerState state)) return;
             state.Receiving = started;
+            state.WarnedUnframed = false;
             BetterNetworking10.Log.Message($"Compression from {PeerLookup.Name(peer)}: {started}");
         }
 
@@ -197,28 +282,35 @@ namespace DIT.BetterNetworking10
         internal static void SendPrefix(ZSteamSocket __instance, ref ZPackage pkg)
         {
             if (pkg == null || !CompressionState.TryGet(__instance, out CompressionState.PeerState state) || !state.Sending) return;
-            pkg = new ZPackage(CompressionCodec.Compress(pkg.GetArray()));
+            pkg = new ZPackage(CompressionFrame.Encode(pkg.GetArray()));
         }
 
         internal static void ReceivePostfix(ZSteamSocket __instance, ref ZPackage __result)
         {
             if (__result == null || !CompressionState.TryGet(__instance, out CompressionState.PeerState state)) return;
+            byte[] packet = __result.GetArray();
             try
             {
-                __result = new ZPackage(CompressionCodec.Decompress(__result.GetArray()));
-                if (!state.Receiving)
+                if (CompressionFrame.TryDecode(packet, out byte[] decoded))
                 {
-                    state.Receiving = true;
-                    BetterNetworking10.Log.Warning("Received compressed Steamworks packet before compression-start state; recovered automatically");
+                    __result = new ZPackage(decoded);
+                    state.WarnedUnframed = false;
+                    if (!state.Receiving)
+                    {
+                        state.Receiving = true;
+                        BetterNetworking10.Log.Warning("Received framed Steamworks packet before compression-start state; recovered automatically");
+                    }
+                }
+                else if (state.Receiving && !state.WarnedUnframed)
+                {
+                    state.WarnedUnframed = true;
+                    BetterNetworking10.Log.Warning("Received an unframed Steamworks packet while compression was active; packet preserved");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                if (state.Receiving)
-                {
-                    state.Receiving = false;
-                    BetterNetworking10.Log.Warning("Received uncompressed Steamworks packet while compression was active; recovered automatically");
-                }
+                BetterNetworking10.Log.Error($"Invalid Better Networking Steamworks frame dropped: {ex.Message}");
+                __result = null;
             }
         }
     }
@@ -251,7 +343,7 @@ namespace DIT.BetterNetworking10
             while (___m_inCompress.Count > 0)
             {
                 byte[] data = ___m_inCompress.Dequeue();
-                try { ___m_outCompress.Enqueue(CompressionCodec.Compress(data)); }
+                try { ___m_outCompress.Enqueue(CompressionFrame.Encode(data)); }
                 catch (Exception ex) { BetterNetworking10.Log.Error($"PlayFab compression failed: {ex.Message}"); }
             }
             return false;
@@ -265,32 +357,37 @@ namespace DIT.BetterNetworking10
             while (___m_inDecompress.Count > 0)
             {
                 byte[] data = ___m_inDecompress.Dequeue();
+                bool isBnFrame = CompressionFrame.HasHeader(data);
                 try
                 {
-                    ___m_outDecompress.Enqueue(CompressionCodec.Decompress(data));
-                    if (state != null && !state.Receiving)
+                    if (CompressionFrame.TryDecode(data, out byte[] decoded))
                     {
-                        state.Receiving = true;
-                        BetterNetworking10.Log.Warning("Received compressed PlayFab packet before compression-start state; recovered automatically");
+                        ___m_outDecompress.Enqueue(decoded);
+                        if (state != null && !state.Receiving)
+                        {
+                            state.Receiving = true;
+                            BetterNetworking10.Log.Warning("Received framed PlayFab packet before compression-start state; recovered automatically");
+                        }
+                        continue;
                     }
+                }
+                catch (Exception ex)
+                {
+                    BetterNetworking10.Log.Error($"Invalid Better Networking PlayFab frame dropped: {ex.Message}");
+                    continue;
+                }
+
+                if (isBnFrame) continue;
+
+                try
+                {
+                    byte[] vanilla = ZlibStream.UncompressBuffer(data);
+                    ___m_outDecompress.Enqueue(vanilla);
                 }
                 catch
                 {
-                    try
-                    {
-                        byte[] vanilla = ZlibStream.UncompressBuffer(data);
-                        ___m_outDecompress.Enqueue(vanilla);
-                        if (state != null && state.Receiving)
-                        {
-                            state.Receiving = false;
-                            BetterNetworking10.Log.Warning("Received vanilla PlayFab packet while BN compression was active; recovered automatically");
-                        }
-                    }
-                    catch
-                    {
-                        BetterNetworking10.Log.Warning("PlayFab packet was neither BN-compressed nor vanilla-zlib; preserving raw data");
-                        ___m_outDecompress.Enqueue(data);
-                    }
+                    BetterNetworking10.Log.Warning("PlayFab packet was neither BN-framed nor vanilla-zlib; preserving raw data");
+                    ___m_outDecompress.Enqueue(data);
                 }
             }
             return false;
@@ -300,16 +397,17 @@ namespace DIT.BetterNetworking10
         {
             if (!Sockets.TryGetValue(__instance, out ZPlayFabSocket socket)) return true;
             if (!CompressionState.TryGet(socket, out CompressionState.PeerState state) || !state.Sending) return true;
-            __result = CompressionCodec.Compress(payload);
+            __result = CompressionFrame.Encode(payload);
             return false;
         }
 
         internal static bool DirectDecompressPrefix(PlayFabZLibWorkQueue __instance, byte[] payload, ref byte[] __result)
         {
             if (!Sockets.TryGetValue(__instance, out ZPlayFabSocket socket)) return true;
+            if (!CompressionFrame.HasHeader(payload)) return true;
             try
             {
-                __result = CompressionCodec.Decompress(payload);
+                if (!CompressionFrame.TryDecode(payload, out __result)) return true;
                 if (CompressionState.TryGet(socket, out CompressionState.PeerState state) && !state.Receiving)
                 {
                     state.Receiving = true;

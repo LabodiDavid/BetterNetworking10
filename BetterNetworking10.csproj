@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
 
-    <PluginVersion>1.0</PluginVersion>
+    <PluginVersion>1.1.0</PluginVersion>
     <Version>$(PluginVersion)</Version>
     <AssemblyVersion>$(PluginVersion).0</AssemblyVersion>
     <FileVersion>$(PluginVersion).0</FileVersion>
