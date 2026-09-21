@@ -3,7 +3,7 @@
 An updated networking mod for **Valheim 1.0**, based on
 [CW-Jesse's Better Networking](https://github.com/CW-Jesse/valheim-betternetworking).
 
-This is not an official continuation of the original project. It is a compatibility-focused fork built and checked/tested against **Valheim 1.0.12** (`network version 40`).
+This is not an official continuation of the original project. It is a compatibility-focused fork compiled against **Valheim 1.0.15**  (`network version 40`).
 
 ## Do you need this on Valheim 1.0?
 
@@ -48,6 +48,7 @@ This fork updates those paths instead of only rebuilding the old DLL.
 - Verifies sensitive IL patterns before modifying them.
 - Logs every patch as `PATCH OK`, `PATCH SKIP` or `PATCH FAILED`.
 - Provides a `VanillaSafe` mode for troubleshooting/only compressing without any changes in the networking.
+- Optional portal ghost fix - refreshes teleported player and linked status-effect ZDOs to work around portal ghosts, including magic barrier left at the source portal.
 
 ## Installation
 
@@ -93,6 +94,7 @@ Queue Size = true
 Update Rate = true
 Steam Send Rate = true
 New Connection ZDO Buffer = false
+Portal Ghost Fix = false
 
 [02 - Networking]
 Queue Size = KB32
@@ -103,12 +105,27 @@ Update Rate = Percent100
 
 All networking feature changes should be followed by a full server and client restart.
 
+## Optional Portal Ghost Fix
+
+Enable this on the dedicated server only if players remain visible at the source portal:
+
+```ini
+[01 - Features]
+Portal Ghost Fix = true
+```
+
+The server checks connected player ZDO positions every 0.25 seconds. A movement of at least 64 metres queues the player record and any networked status-effect objects linked to that player for observers again. One delayed refresh is also sent so attached effects such as the magic barrier use their post-teleport position. Vanilla clients are supported.
+
+Remove other portal ghost fix plugins when enabling the built-in feature. If any is still installed, Better Networking detects the plugin GUID and leaves its own workaround disabled to prevent duplicate sends.
+
+This feature does not change portal logic, player ownership, status-effect duration, combat state, or world saves.
+
 ## Startup log
 
-For Valheim 1.0.12, a normal startup should include:
+For Valheim 1.0.12 - 1.0.15, a normal startup should include:
 
 ```text
-Valheim target verified: 1.0.12, network version 40
+Valheim compatibility verified: 1.0.15, network version 40
 Patch audit complete
 ```
 
@@ -130,7 +147,7 @@ A normal Windows build:
 
 - generates the plugin version from `PluginVersion`;
 - copies the DLL into the selected r2modman profile;
-- creates `dist\BetterNetworking_Valheim-1.0.zip`.
+- creates `dist\BetterNetworking_Valheim-1.2.0.zip`.
 
 For a portable build, place the required game assemblies in `libs/` and run:
 

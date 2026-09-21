@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+- Added an optional, server-side portal ghost fix workaround based on Sfantul's observer refresh approach and automatically disables it if it's already installed.
+- Portal Ghost Fix: Refreshes networked status-effect objects linked to a teleported player, preventing effects such as the magic barrier from remaining at the source portal.
+- Recognizes Valheim 1.0.12 through 1.0.15 with network version 40 as the currently audited compatibility range.
+
 ## 1.1.0
 
 - Added an explicit compression frame header instead of detecting compressed packets by trial decompression.
@@ -19,5 +25,4 @@
 - Added independent feature switches and startup patch auditing.
 - Disabled the new-connection ZDO buffer by default and made its storage connection-scoped.
 - Added a one-time import from `CW_Jesse.BetterNetworking.cfg` on first launch.
-- Kept the new plugin GUID and clean configuration file to avoid collisions with legacy DLLs.
 - Legacy connection buffering is intentionally not imported and remains disabled.

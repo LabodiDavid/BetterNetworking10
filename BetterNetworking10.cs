@@ -33,6 +33,7 @@ namespace DIT.BetterNetworking10
         internal static ConfigEntry<bool> EnableUpdateRate;
         internal static ConfigEntry<bool> EnableSendRate;
         internal static ConfigEntry<bool> EnableConnectionBuffer;
+        internal static ConfigEntry<bool> EnablePortalGhostFix;
         internal static ConfigEntry<QueueSizeOption> QueueSize;
         internal static ConfigEntry<UpdateRateOption> UpdateRate;
         internal static ConfigEntry<SendRateOption> MinimumSendRate;
@@ -52,20 +53,25 @@ namespace DIT.BetterNetworking10
             if (shouldImportLegacyConfig)
                 LegacyConfigMigration.TryImport(Config, Log);
 
-            GameVersion target = new GameVersion(1, 0, 12);
-            if (Version.CurrentVersion != target)
-                Log.Warning($"This build targets Valheim {target}; running {Version.CurrentVersion}. Check PATCH FAILED messages and retest networking after game updates.");
+            GameVersion minimum = new GameVersion(1, 0, 12);
+            GameVersion latestAudited = new GameVersion(1, 0, 15);
+            if (Version.c_networkVersion != 40 || Version.CurrentVersion < minimum || Version.CurrentVersion > latestAudited)
+                Log.Warning($"This build supports the audited Valheim range {minimum}-{latestAudited} with network version 40; running {Version.CurrentVersion} / network {Version.c_networkVersion}. Check PATCH FAILED messages and retest networking after game updates.");
             else
-                Log.Message($"Valheim target verified: {Version.CurrentVersion}, network version {Version.c_networkVersion}");
+                Log.Message($"Valheim compatibility verified: {Version.CurrentVersion}, network version {Version.c_networkVersion}");
 
             _harmony = new Harmony(PluginGuid);
             PatchInstaller.Install(_harmony);
+            PortalGhostRefresh.Initialize();
         }
+
+        private void Update() => PortalGhostRefresh.Tick();
 
         private void OnDestroy()
         {
             CompressionState.Clear();
             ConnectionBufferPatch.Clear();
+            PortalGhostRefresh.Clear();
             _harmony?.UnpatchSelf();
         }
 
@@ -84,6 +90,8 @@ namespace DIT.BetterNetworking10
                 "Changes Steamworks send-rate limits. Has no effect with PlayFab/crossplay. Disabled in VanillaSafe mode.");
             EnableConnectionBuffer = Config.Bind("01 - Features", "New Connection ZDO Buffer", false,
                 "Experimental. Buffers early ZDOData packets per connection until ZDOMan registers the peer. OFF by default because stale player/ZDO state is being diagnosed.");
+            EnablePortalGhostFix = Config.Bind("01 - Features", "Portal Ghost Fix", false,
+                "Optional server-side portal observer refresh. Re-sends a teleported player's ZDO and related networked status-effect ZDOs; vanilla clients are supported. Disable the standalone Sfantul mod when using this.");
 
             QueueSize = Config.Bind("02 - Networking", "Queue Size", QueueSizeOption.KB32,
                 "ZDO send budget based on Valheim's reported queue size. Vanilla leaves the game's 10 KB budget unchanged.");
@@ -106,6 +114,7 @@ namespace DIT.BetterNetworking10
         internal static bool UpdateRateActive => !SafeMode && EnableUpdateRate.Value && UpdateRate.Value != UpdateRateOption.Percent100;
         internal static bool SendRateActive => !SafeMode && EnableSendRate.Value;
         internal static bool ConnectionBufferActive => !SafeMode && EnableConnectionBuffer.Value;
+        internal static bool PortalGhostFixActive => EnablePortalGhostFix.Value;
 
         internal static int QueueBudgetBytes
         {

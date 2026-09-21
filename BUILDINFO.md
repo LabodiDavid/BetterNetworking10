@@ -1,7 +1,8 @@
 # Build information
 
-- Mod version: `1.0.1`
+- Mod version: `1.2.0`
 - Target game version reported by the supplied server assembly: `Valheim 1.0.12`
+- Runtime patch audit also verified on `Valheim 1.0.15` from a complete user startup log (`15 applied, 4 skipped, 0 failed`).
 - Target network version: `40`
 - `assembly_valheim.dll` SHA-256: `1231fc2ffdbe6038ba622b8646c2084980d06962e5f8521ae5a0b886be0f1c61`
 - `BepInEx.dll` SHA-256: `f09821b2a7b990c6f50c5ef23229635303ce675374b70edc6f5a9b960cb818e3`
