@@ -103,6 +103,8 @@ Update Rate = Percent100
 
 `Steam Send Rate` affects Steamworks connections only. It does not affect PlayFab/crossplay networking.
 
+For hosted dedicated servers, prefer `Force Crossplay = Vanilla` and select crossplay in the hosting provider's control panel. If the override is used, Better Networking applies it before Valheim initializes the server. `VanillaSafe` always leaves backend selection to the vanilla command line.
+
 All networking feature changes should be followed by a full server and client restart.
 
 ## Optional Portal Ghost Fix

@@ -8,14 +8,14 @@ namespace DIT.BetterNetworking10
 {
     internal static class DedicatedPatch
     {
-        internal static void ParseArgumentsPostfix()
+        internal static void SetServerPrefix()
         {
-            if (!BetterNetworking10.IsDedicated) return;
+            if (!BetterNetworking10.IsDedicated || BetterNetworking10.SafeMode) return;
+
             switch (BetterNetworking10.ForceCrossplay.Value)
             {
                 case ForceCrossplayOption.PlayFab:
                     ZNet.m_onlineBackend = OnlineBackendType.PlayFab;
-                    ZPlayFabMatchmaking.LookupPublicIP();
                     break;
                 case ForceCrossplayOption.Steamworks:
                     ZNet.m_onlineBackend = OnlineBackendType.Steamworks;

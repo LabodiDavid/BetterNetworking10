@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Apply a forced PlayFab or Steamworks backend before `ZNet.SetServer` initializes the server, matching Valheim's native startup order.
+- Removed the late manual `ZPlayFabMatchmaking.LookupPublicIP()` call that could leave dedicated servers in a partially initialized backend state.
+- `VanillaSafe` now leaves dedicated-server backend selection on the vanilla command-line setting.
+
 ## 1.2.0
 
 - Added an optional, server-side portal ghost fix workaround based on Sfantul's observer refresh approach and automatically disables it if it's already installed.

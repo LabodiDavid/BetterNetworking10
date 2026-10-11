@@ -103,7 +103,7 @@ namespace DIT.BetterNetworking10
                 "Steamworks maximum send rate in KB/s.");
 
             ForceCrossplay = Config.Bind("04 - Dedicated Server", "Force Crossplay", ForceCrossplayOption.Vanilla,
-                "Vanilla follows the server command line; PlayFab forces crossplay; Steamworks disables crossplay.");
+                "Vanilla follows the server command line; PlayFab or Steamworks overrides the backend before server initialization. Requires restart and is disabled in VanillaSafe mode.");
             PlayerLimit = Config.Bind("04 - Dedicated Server", "Player Limit", 10,
                 new ConfigDescription("Dedicated server player limit. Requires restart.", new AcceptableValueRange<int>(1, 127)));
         }
@@ -233,10 +233,10 @@ namespace DIT.BetterNetworking10
 
         private static void InstallDedicatedTweaks(Harmony harmony)
         {
-            if (BetterNetworking10.ForceCrossplay.Value != ForceCrossplayOption.Vanilla)
-                Patch(harmony, "Dedicated force crossplay", AccessTools.DeclaredMethod(typeof(FejdStartup), "ParseServerArguments"), postfix: nameof(DedicatedPatch.ParseArgumentsPostfix), patchType: typeof(DedicatedPatch));
+            if (!BetterNetworking10.SafeMode && BetterNetworking10.ForceCrossplay.Value != ForceCrossplayOption.Vanilla)
+                Patch(harmony, "Dedicated backend selection", AccessTools.DeclaredMethod(typeof(ZNet), nameof(ZNet.SetServer), new[] { typeof(bool), typeof(bool), typeof(bool), typeof(string), typeof(string), typeof(World) }), prefix: nameof(DedicatedPatch.SetServerPrefix), patchType: typeof(DedicatedPatch));
             else
-                Skip("Dedicated force crossplay", "vanilla setting");
+                Skip("Dedicated backend selection", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "vanilla setting");
 
             if (BetterNetworking10.PlayerLimit.Value != 10)
                 Patch(harmony, "Dedicated player limit", AccessTools.DeclaredMethod(typeof(ZNet), "RPC_PeerInfo"), transpiler: nameof(DedicatedPatch.PlayerLimitTranspiler), patchType: typeof(DedicatedPatch));
