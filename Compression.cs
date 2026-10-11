@@ -217,6 +217,28 @@ namespace DIT.BetterNetworking10
             CompressionState.Remove(peer?.m_socket);
         }
 
+        internal static void RefreshNegotiation()
+        {
+            if (ZNet.instance == null)
+                return;
+
+            foreach (ZNetPeer peer in ZNet.instance.GetPeers().ToArray())
+            {
+                if (peer?.m_rpc == null || peer.m_socket == null ||
+                    !CompressionState.TryGet(peer.m_socket, out _))
+                    continue;
+
+                try
+                {
+                    SendEnabled(peer);
+                }
+                catch (Exception ex)
+                {
+                    BetterNetworking10.Log.Warning($"Could not refresh compression state for {PeerLookup.Name(peer)}: {ex.Message}");
+                }
+            }
+        }
+
         private static void ReceiveVersion(ZRpc rpc, int version)
         {
             ZNetPeer peer = PeerLookup.ByRpc(rpc);

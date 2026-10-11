@@ -1,4 +1,5 @@
 [00 - Compatibility]
+Lock Configuration = true
 Mode = Balanced
 
 [01 - Features]
@@ -7,6 +8,7 @@ Queue Size = true
 Update Rate = true
 Steam Send Rate = true
 New Connection ZDO Buffer = false
+Portal Ghost Fix = false
 
 [02 - Networking]
 Queue Size = KB32

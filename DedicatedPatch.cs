@@ -23,7 +23,7 @@ namespace DIT.BetterNetworking10
             }
         }
 
-        internal static int GetPlayerLimit() => BetterNetworking10.PlayerLimit.Value;
+        internal static int GetPlayerLimit() => BetterNetworking10.SafeMode ? 10 : BetterNetworking10.PlayerLimit.Value;
 
         internal static IEnumerable<CodeInstruction> PlayerLimitTranspiler(IEnumerable<CodeInstruction> instructions)
         {

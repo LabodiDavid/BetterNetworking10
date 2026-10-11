@@ -2,7 +2,7 @@
   "name": "BetterNetworking_Valheim",
   "version_number": "__VERSION__",
   "website_url": "https://github.com/LabodiDavid/BetterNetworking10",
-  "description": "Improve multiplayer network performance using compression, queue size, send rate, and other features. Valheim 1.0 fork with guarded patches, legacy config migration. With optional portal ghost fix.",
+  "description": "Valheim 1.0 networking fork with guarded runtime patches, optional Conditional Config Sync support, and a server-side portal ghost workaround.",
   "dependencies": [
     "denikson-BepInExPack_Valheim-5.4.2350"
   ]

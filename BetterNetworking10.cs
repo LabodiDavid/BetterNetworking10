@@ -5,6 +5,7 @@ using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 using BepInEx;
+using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using HarmonyLib;
 using PlayFab.Party;
@@ -13,6 +14,7 @@ using UnityEngine;
 namespace DIT.BetterNetworking10
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInDependency(ConditionalConfigSyncAPI.ConfigSync.PluginGuid, BepInDependency.DependencyFlags.SoftDependency)]
     [BepInIncompatibility("CW_Jesse.BetterNetworking")]
     [BepInIncompatibility("org.bepinex.plugins.network")]
     [BepInIncompatibility("be.sebastienvercammen.valheim.netcompression")]
@@ -23,10 +25,12 @@ namespace DIT.BetterNetworking10
         public const string PluginGuid = "DIT.BetterNetworking10";
         public const string PluginName = "Better Networking 1.0 Safe";
         public const string PluginVersion = VersionInfo.Version;
+        private const string MinimumSyncCompatibleVersion = "1.3.0";
 
         internal static BetterNetworking10 Instance { get; private set; }
         internal static BNLog Log { get; private set; }
 
+        internal static ConfigEntry<bool> LockConfiguration;
         internal static ConfigEntry<CompatibilityMode> Mode;
         internal static ConfigEntry<bool> EnableCompression;
         internal static ConfigEntry<bool> EnableQueueSize;
@@ -40,13 +44,24 @@ namespace DIT.BetterNetworking10
         internal static ConfigEntry<SendRateOption> MaximumSendRate;
         internal static ConfigEntry<ForceCrossplayOption> ForceCrossplay;
         internal static ConfigEntry<int> PlayerLimit;
+        internal static bool CompressionRuntimeAvailable { get; set; }
 
         private Harmony _harmony;
+        private ConditionalConfigSyncAPI.ConfigSync _configSync;
 
         private void Awake()
         {
             Instance = this;
             bool shouldImportLegacyConfig = !File.Exists(Config.ConfigFilePath);
+            _configSync = new ConditionalConfigSyncAPI.ConfigSync(
+                PluginGuid,
+                PluginName,
+                PluginVersion,
+                minimumRequiredVersion: MinimumSyncCompatibleVersion,
+                modRequired: false,
+                requirementMode: ConditionalConfigSyncAPI.RequirementMode.Conditional,
+                allowClientConfigUpdatesWhenUnlocked: true,
+                logger: Logger);
             BindConfig();
             Log = new BNLog(Logger, Config);
 
@@ -63,53 +78,116 @@ namespace DIT.BetterNetworking10
             _harmony = new Harmony(PluginGuid);
             PatchInstaller.Install(_harmony);
             PortalGhostRefresh.Initialize();
+            RegisterRuntimeConfigHandlers();
+
+            if (_configSync.IsActive)
+                Log.Message($"Conditional Config Sync active (optional integration, CCS >= {ConditionalConfigSyncAPI.ConfigSync.MinimumCcsVersion})");
+            else if (Chainloader.PluginInfos.ContainsKey(ConditionalConfigSyncAPI.ConfigSync.PluginGuid))
+                Log.Warning($"Conditional Config Sync is installed but optional synchronization is inactive; CCS {ConditionalConfigSyncAPI.ConfigSync.MinimumCcsVersion} or newer is required");
         }
 
         private void Update() => PortalGhostRefresh.Tick();
 
         private void OnDestroy()
         {
+            UnregisterRuntimeConfigHandlers();
             CompressionState.Clear();
             ConnectionBufferPatch.Clear();
             PortalGhostRefresh.Clear();
+            SteamSendRatePatch.Clear();
             _harmony?.UnpatchSelf();
         }
 
         private void BindConfig()
         {
-            Mode = Config.Bind("00 - Compatibility", "Mode", CompatibilityMode.Balanced,
-                "Balanced: the enabled feature switches below are applied. VanillaSafe: only compression is allowed; ZDO scheduling, queue, and Steam send-rate changes are disabled.");
+            LockConfiguration = _configSync.BindLocking(Config, "00 - Compatibility", "Lock Configuration", true,
+                "When Conditional Config Sync is installed, only server administrators may change server-controlled settings. Has no effect without CCS.");
+            Mode = _configSync.Bind(Config, "00 - Compatibility", "Mode", CompatibilityMode.Balanced,
+                "Balanced: the enabled feature switches below are applied. VanillaSafe: only compression is allowed; ZDO scheduling, queue, and Steam send-rate changes are disabled.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
 
-            EnableCompression = Config.Bind("01 - Features", "Compression", true,
-                "Compress traffic only when both peers run this compatible build.");
-            EnableQueueSize = Config.Bind("01 - Features", "Queue Size", true,
-                "Changes the ZDO send budget directly. Disabled in VanillaSafe mode.");
-            EnableUpdateRate = Config.Bind("01 - Features", "Update Rate", true,
-                "Allows a lower ZDO update frequency. Disabled in VanillaSafe mode.");
-            EnableSendRate = Config.Bind("01 - Features", "Steam Send Rate", true,
-                "Changes Steamworks send-rate limits. Has no effect with PlayFab/crossplay. Disabled in VanillaSafe mode.");
-            EnableConnectionBuffer = Config.Bind("01 - Features", "New Connection ZDO Buffer", false,
-                "Experimental. Buffers early ZDOData packets per connection until ZDOMan registers the peer. OFF by default because stale player/ZDO state is being diagnosed.");
-            EnablePortalGhostFix = Config.Bind("01 - Features", "Portal Ghost Fix", false,
-                "Optional server-side portal observer refresh. Re-sends a teleported player's ZDO and related networked status-effect ZDOs; vanilla clients are supported. Disable the standalone Sfantul mod when using this.");
+            EnableCompression = _configSync.Bind(Config, "01 - Features", "Compression", true,
+                "Compress traffic only when both peers run this compatible build.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            EnableQueueSize = _configSync.Bind(Config, "01 - Features", "Queue Size", true,
+                "Changes the ZDO send budget directly. Disabled in VanillaSafe mode.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            EnableUpdateRate = _configSync.Bind(Config, "01 - Features", "Update Rate", true,
+                "Allows a lower ZDO update frequency. Disabled in VanillaSafe mode.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            EnableSendRate = _configSync.Bind(Config, "01 - Features", "Steam Send Rate", true,
+                "Changes Steamworks send-rate limits. Has no effect with PlayFab/crossplay. Disabled in VanillaSafe mode.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            EnableConnectionBuffer = _configSync.Bind(Config, "01 - Features", "New Connection ZDO Buffer", false,
+                "Experimental and client-local because it runs before server config synchronization. Buffers early ZDOData packets per connection until ZDOMan registers the peer. OFF by default.",
+                ConditionalConfigSyncAPI.SyncMode.AlwaysClientControlled);
+            EnablePortalGhostFix = _configSync.Bind(Config, "01 - Features", "Portal Ghost Fix", false,
+                "Optional server-side portal observer refresh. Re-sends a teleported player's ZDO and related networked status-effect ZDOs; vanilla clients are supported. Disable the standalone Sfantul mod when using this.",
+                ConditionalConfigSyncAPI.SyncMode.AlwaysServerControlled);
 
-            QueueSize = Config.Bind("02 - Networking", "Queue Size", QueueSizeOption.KB32,
-                "ZDO send budget based on Valheim's reported queue size. Vanilla leaves the game's 10 KB budget unchanged.");
-            UpdateRate = Config.Bind("02 - Networking", "Update Rate", UpdateRateOption.Percent100,
-                "100 = vanilla 20 Hz timer; 75 = 15 Hz; 50 = 10 Hz.");
-            MinimumSendRate = Config.Bind("03 - Steamworks", "Minimum Send Rate", SendRateOption.KB256,
-                "Steamworks minimum send rate in KB/s. Keep this below the real upload capacity.");
-            MaximumSendRate = Config.Bind("03 - Steamworks", "Maximum Send Rate", SendRateOption.KB1024,
-                "Steamworks maximum send rate in KB/s.");
+            QueueSize = _configSync.Bind(Config, "02 - Networking", "Queue Size", QueueSizeOption.KB32,
+                "ZDO send budget based on Valheim's reported queue size. Vanilla leaves the game's 10 KB budget unchanged.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            UpdateRate = _configSync.Bind(Config, "02 - Networking", "Update Rate", UpdateRateOption.Percent100,
+                "100 = vanilla 20 Hz timer; 75 = 15 Hz; 50 = 10 Hz.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            MinimumSendRate = _configSync.Bind(Config, "03 - Steamworks", "Minimum Send Rate", SendRateOption.KB256,
+                "Steamworks minimum send rate in KB/s. Keep this below the real upload capacity.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
+            MaximumSendRate = _configSync.Bind(Config, "03 - Steamworks", "Maximum Send Rate", SendRateOption.KB1024,
+                "Steamworks maximum send rate in KB/s.",
+                ConditionalConfigSyncAPI.SyncMode.Conditional, serverControlledByDefault: true);
 
-            ForceCrossplay = Config.Bind("04 - Dedicated Server", "Force Crossplay", ForceCrossplayOption.Vanilla,
-                "Vanilla follows the server command line; PlayFab or Steamworks overrides the backend before server initialization. Requires restart and is disabled in VanillaSafe mode.");
-            PlayerLimit = Config.Bind("04 - Dedicated Server", "Player Limit", 10,
-                new ConfigDescription("Dedicated server player limit. Requires restart.", new AcceptableValueRange<int>(1, 127)));
+            ForceCrossplay = _configSync.Bind(Config, "04 - Dedicated Server", "Force Crossplay", ForceCrossplayOption.Vanilla,
+                "Vanilla follows the server command line; PlayFab or Steamworks overrides the backend before server initialization. Requires restart and is disabled in VanillaSafe mode.",
+                ConditionalConfigSyncAPI.SyncMode.AlwaysServerControlled);
+            PlayerLimit = _configSync.Bind(Config, "04 - Dedicated Server", "Player Limit", 10,
+                new ConfigDescription("Dedicated server player limit. Requires restart.", new AcceptableValueRange<int>(1, 127)),
+                ConditionalConfigSyncAPI.SyncMode.AlwaysServerControlled);
+        }
+
+        private void RegisterRuntimeConfigHandlers()
+        {
+            EnableCompression.SettingChanged += OnCompressionSettingChanged;
+
+            Mode.SettingChanged += OnNetworkRuntimeSettingChanged;
+            EnableSendRate.SettingChanged += OnNetworkRuntimeSettingChanged;
+            MinimumSendRate.SettingChanged += OnNetworkRuntimeSettingChanged;
+            MaximumSendRate.SettingChanged += OnNetworkRuntimeSettingChanged;
+            EnableConnectionBuffer.SettingChanged += OnNetworkRuntimeSettingChanged;
+        }
+
+        private void UnregisterRuntimeConfigHandlers()
+        {
+            if (EnableCompression != null)
+                EnableCompression.SettingChanged -= OnCompressionSettingChanged;
+
+            if (Mode != null)
+                Mode.SettingChanged -= OnNetworkRuntimeSettingChanged;
+            if (EnableSendRate != null)
+                EnableSendRate.SettingChanged -= OnNetworkRuntimeSettingChanged;
+            if (MinimumSendRate != null)
+                MinimumSendRate.SettingChanged -= OnNetworkRuntimeSettingChanged;
+            if (MaximumSendRate != null)
+                MaximumSendRate.SettingChanged -= OnNetworkRuntimeSettingChanged;
+            if (EnableConnectionBuffer != null)
+                EnableConnectionBuffer.SettingChanged -= OnNetworkRuntimeSettingChanged;
+        }
+
+        private static void OnCompressionSettingChanged(object sender, EventArgs eventArgs)
+        {
+            CompressionPatch.RefreshNegotiation();
+        }
+
+        private static void OnNetworkRuntimeSettingChanged(object sender, EventArgs eventArgs)
+        {
+            SteamSendRatePatch.Refresh();
+            if (!ConnectionBufferActive)
+                ConnectionBufferPatch.Clear();
         }
 
         internal static bool SafeMode => Mode.Value == CompatibilityMode.VanillaSafe;
-        internal static bool CompressionActive => EnableCompression.Value;
+        internal static bool CompressionActive => CompressionRuntimeAvailable && EnableCompression.Value;
         internal static bool QueueActive => !SafeMode && EnableQueueSize.Value && QueueSize.Value != QueueSizeOption.Vanilla;
         internal static bool UpdateRateActive => !SafeMode && EnableUpdateRate.Value && UpdateRate.Value != UpdateRateOption.Percent100;
         internal static bool SendRateActive => !SafeMode && EnableSendRate.Value;
@@ -163,44 +241,24 @@ namespace DIT.BetterNetworking10
 
         internal static void Install(Harmony harmony)
         {
-            if (BetterNetworking10.CompressionActive)
+            BetterNetworking10.CompressionRuntimeAvailable = false;
+            try
             {
-                try
-                {
-                    CompressionCodec.Initialize();
-                    CompressionFrame.SelfTest();
-                    InstallCompression(harmony);
-                }
-                catch (Exception ex)
-                {
-                    Skip("Compression", $"self-test failed: {ex.GetType().Name}: {ex.Message}");
-                    BetterNetworking10.Log.Error("Compression was left disabled because its startup self-test failed");
-                }
+                CompressionCodec.Initialize();
+                CompressionFrame.SelfTest();
+                BetterNetworking10.CompressionRuntimeAvailable = true;
+                InstallCompression(harmony);
             }
-            else
+            catch (Exception ex)
             {
-                Skip("Compression", "disabled by configuration");
+                Skip("Compression", $"self-test failed: {ex.GetType().Name}: {ex.Message}");
+                BetterNetworking10.Log.Error("Compression was left disabled because its startup self-test failed");
             }
 
-            if (BetterNetworking10.QueueActive)
-                Patch(harmony, "ZDO queue budget", AccessTools.DeclaredMethod(typeof(ZDOMan), "SendZDOs"), transpiler: nameof(QueueBudgetPatch.Transpiler), patchType: typeof(QueueBudgetPatch));
-            else
-                Skip("ZDO queue budget", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "vanilla/disabled setting");
-
-            if (BetterNetworking10.UpdateRateActive)
-                Patch(harmony, "ZDO update rate", AccessTools.DeclaredMethod(typeof(ZDOMan), "SendZDOToPeers2"), prefix: nameof(UpdateRatePatch.Prefix), patchType: typeof(UpdateRatePatch));
-            else
-                Skip("ZDO update rate", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "100%/disabled setting");
-
-            if (BetterNetworking10.SendRateActive)
-                Patch(harmony, "Steam send rate", AccessTools.DeclaredMethod(typeof(ZSteamSocket), "RegisterGlobalCallbacks"), postfix: nameof(SteamSendRatePatch.Postfix), patchType: typeof(SteamSendRatePatch));
-            else
-                Skip("Steam send rate", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "disabled by configuration");
-
-            if (BetterNetworking10.ConnectionBufferActive)
-                InstallConnectionBuffer(harmony);
-            else
-                Skip("New connection ZDO buffer", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "disabled by default/configuration");
+            Patch(harmony, "ZDO queue budget (runtime guarded)", AccessTools.DeclaredMethod(typeof(ZDOMan), "SendZDOs"), transpiler: nameof(QueueBudgetPatch.Transpiler), patchType: typeof(QueueBudgetPatch));
+            Patch(harmony, "ZDO update rate (runtime guarded)", AccessTools.DeclaredMethod(typeof(ZDOMan), "SendZDOToPeers2"), prefix: nameof(UpdateRatePatch.Prefix), patchType: typeof(UpdateRatePatch));
+            Patch(harmony, "Steam send rate (runtime guarded)", AccessTools.DeclaredMethod(typeof(ZSteamSocket), "RegisterGlobalCallbacks"), postfix: nameof(SteamSendRatePatch.Postfix), patchType: typeof(SteamSendRatePatch));
+            InstallConnectionBuffer(harmony);
 
             InstallDedicatedTweaks(harmony);
             BetterNetworking10.Log.Message($"Patch audit complete: {_applied} applied, {_skipped} skipped, {_failed} failed. Mode={BetterNetworking10.Mode.Value}");
@@ -233,15 +291,8 @@ namespace DIT.BetterNetworking10
 
         private static void InstallDedicatedTweaks(Harmony harmony)
         {
-            if (!BetterNetworking10.SafeMode && BetterNetworking10.ForceCrossplay.Value != ForceCrossplayOption.Vanilla)
-                Patch(harmony, "Dedicated backend selection", AccessTools.DeclaredMethod(typeof(ZNet), nameof(ZNet.SetServer), new[] { typeof(bool), typeof(bool), typeof(bool), typeof(string), typeof(string), typeof(World) }), prefix: nameof(DedicatedPatch.SetServerPrefix), patchType: typeof(DedicatedPatch));
-            else
-                Skip("Dedicated backend selection", BetterNetworking10.SafeMode ? "VanillaSafe mode" : "vanilla setting");
-
-            if (BetterNetworking10.PlayerLimit.Value != 10)
-                Patch(harmony, "Dedicated player limit", AccessTools.DeclaredMethod(typeof(ZNet), "RPC_PeerInfo"), transpiler: nameof(DedicatedPatch.PlayerLimitTranspiler), patchType: typeof(DedicatedPatch));
-            else
-                Skip("Dedicated player limit", "vanilla value 10");
+            Patch(harmony, "Dedicated backend selection (runtime guarded)", AccessTools.DeclaredMethod(typeof(ZNet), nameof(ZNet.SetServer), new[] { typeof(bool), typeof(bool), typeof(bool), typeof(string), typeof(string), typeof(World) }), prefix: nameof(DedicatedPatch.SetServerPrefix), patchType: typeof(DedicatedPatch));
+            Patch(harmony, "Dedicated player limit (runtime value)", AccessTools.DeclaredMethod(typeof(ZNet), "RPC_PeerInfo"), transpiler: nameof(DedicatedPatch.PlayerLimitTranspiler), patchType: typeof(DedicatedPatch));
         }
 
         private static void Patch(Harmony harmony, string label, MethodBase target, string prefix = null, string postfix = null, string transpiler = null, Type patchType = null)

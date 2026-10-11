@@ -1,10 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.3.0
 
 - Apply a forced PlayFab or Steamworks backend before `ZNet.SetServer` initializes the server, matching Valheim's native startup order.
 - Removed the late manual `ZPlayFabMatchmaking.LookupPublicIP()` call that could leave dedicated servers in a partially initialized backend state.
 - `VanillaSafe` now leaves dedicated-server backend selection on the vanilla command-line setting.
+- Added optional Conditional Config Sync 1.0.10+ integration without making it a required dependency.
+- Server-controlled networking settings can now be synchronized and locked for clients that also have Conditional Config Sync installed.
+- Added Conditional Config Sync policy support so administrators can release individual conditional settings or require Better Networking on connecting clients.
+- Made compression negotiation, queue budget, update rate and Steam send-rate handling respond safely to synchronized runtime changes.
+- Kept the experimental early-connection ZDO buffer client-controlled because it runs before server configuration synchronization is available.
 
 ## 1.2.0
 

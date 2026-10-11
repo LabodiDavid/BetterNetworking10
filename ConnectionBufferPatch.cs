@@ -13,7 +13,7 @@ namespace DIT.BetterNetworking10
 
         internal static void OnNewConnectionPostfix(ZNet __instance, ZNetPeer peer)
         {
-            if (__instance == null || peer?.m_rpc == null || __instance.IsServer()) return;
+            if (!BetterNetworking10.ConnectionBufferActive || __instance == null || peer?.m_rpc == null || __instance.IsServer()) return;
             List<ZPackage> buffer = Buffers.GetOrAdd(peer.m_rpc, _ => new List<ZPackage>());
             peer.m_rpc.Register<ZPackage>("ZDOData", (rpc, package) =>
             {
@@ -33,6 +33,7 @@ namespace DIT.BetterNetworking10
         {
             if (__instance == null || netPeer?.m_rpc == null || ReceiveZdoData == null) return;
             if (!Buffers.TryRemove(netPeer.m_rpc, out List<ZPackage> buffer)) return;
+            if (!BetterNetworking10.ConnectionBufferActive) return;
             lock (buffer)
             {
                 BetterNetworking10.Log.Warning($"Replaying {buffer.Count} early ZDOData packet(s) for one connection");

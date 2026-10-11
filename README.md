@@ -3,7 +3,7 @@
 An updated networking mod for **Valheim 1.0**, based on
 [CW-Jesse's Better Networking](https://github.com/CW-Jesse/valheim-betternetworking).
 
-This is not an official continuation of the original project. It is a compatibility-focused fork compiled against **Valheim 1.0.15**  (`network version 40`).
+This is not an official continuation of the original project. It is a compatibility-focused fork compiled against **Valheim 1.0.12** and runtime-audited through **Valheim 1.0.15** (`network version 40`).
 
 ## Do you need this on Valheim 1.0?
 
@@ -48,7 +48,8 @@ This fork updates those paths instead of only rebuilding the old DLL.
 - Verifies sensitive IL patterns before modifying them.
 - Logs every patch as `PATCH OK`, `PATCH SKIP` or `PATCH FAILED`.
 - Provides a `VanillaSafe` mode for troubleshooting/only compressing without any changes in the networking.
-- Optional portal ghost fix - refreshes teleported player and linked status-effect ZDOs to work around portal ghosts, including magic barrier left at the source portal.
+- Optionally synchronizes and locks server networking settings through Conditional Config Sync 1.0.10 or newer.
+- Optionally refreshes teleported player and linked status-effect ZDOs to work around portal ghosts, including a magic barrier left at the source portal.
 
 ## Installation
 
@@ -80,12 +81,56 @@ reliably detect an accidentally installed old Better Networking DLL. Delete the
 new configuration file and restart if you intentionally want to repeat the
 legacy import.
 
+## Optional server configuration synchronization
+
+Better Networking works normally without Conditional Config Sync. To let a server synchronize and enforce its networking settings, install
+[Conditional Config Sync 1.0.10 or newer](https://thunderstore.io/c/valheim/p/shudnal/ConditionalConfigSync/) separately on the dedicated server and on each managed client.
+
+When CCS is active:
+
+- `Mode`, compression, queue, update-rate and Steam send-rate settings are server-controlled by default;
+- `Portal Ghost Fix`, `Force Crossplay`, `Player Limit` and `Lock Configuration` are always server-controlled;
+- `New Connection ZDO Buffer` stays client-controlled because it runs before server config synchronization is available;
+- logging remains local to each installation;
+- Better Networking remains optional on remote peers by default, preserving vanilla-client compatibility.
+
+No CCS policy rule is required for the default setup: keep `Lock Configuration = true` on the server and its synchronized values are authoritative. Setting the lock to `false` deliberately allows ordinary clients to publish changes to server-controlled Better Networking settings.
+
+The server's effective values are applied at runtime where possible. Compression is renegotiated, queue and update-rate getters change immediately, and Steam send-rate limits are refreshed live. `Force Crossplay` still requires a server restart because Valheim chooses the backend during startup.
+
+CCS policy files are stored on the server under:
+
+```text
+BepInEx/config/shudnal.ConditionalConfigSync/
+```
+
+For example, `ConditionalConfigSync.SyncPolicy.cfg` can release one conditional setting back to clients:
+
+```text
+- DIT.BetterNetworking10.03 - Steamworks.Minimum Send Rate
+```
+
+Or explicitly enforce a conditional setting from the server:
+
+```text
++ DIT.BetterNetworking10.01 - Features.Compression
+```
+
+To require Better Networking on connecting clients, add this to `ConditionalConfigSync.ModRequirements.cfg`:
+
+```text
++ DIT.BetterNetworking10
+```
+
+Use `conditionalconfigsync_policy_dump` for copy-ready identifiers and `conditionalconfigsync_policy_validate` after editing policy files. A client without CCS cannot receive synchronized values; it continues using its local Better Networking configuration.
+
 ## Recommended setup
 
 For the first test, use the default `Balanced` mode and keep the connection buffer disabled:
 
 ```ini
 [00 - Compatibility]
+Lock Configuration = true
 Mode = Balanced
 
 [01 - Features]
@@ -101,13 +146,11 @@ Queue Size = KB32
 Update Rate = Percent100
 ```
 
-`Steam Send Rate` affects Steamworks connections only. It does not affect PlayFab/crossplay networking.
+`Steam Send Rate` affects Steamworks connections only. It does not affect PlayFab/crossplay networking. Without CCS, use a full server and client restart after networking changes; CCS applies the synchronized runtime-capable settings automatically.
 
 For hosted dedicated servers, prefer `Force Crossplay = Vanilla` and select crossplay in the hosting provider's control panel. If the override is used, Better Networking applies it before Valheim initializes the server. `VanillaSafe` always leaves backend selection to the vanilla command line.
 
-All networking feature changes should be followed by a full server and client restart.
-
-## Optional Portal Ghost Fix
+## Optional portal ghost workaround
 
 Enable this on the dedicated server only if players remain visible at the source portal:
 
@@ -118,13 +161,15 @@ Portal Ghost Fix = true
 
 The server checks connected player ZDO positions every 0.25 seconds. A movement of at least 64 metres queues the player record and any networked status-effect objects linked to that player for observers again. One delayed refresh is also sent so attached effects such as the magic barrier use their post-teleport position. Vanilla clients are supported.
 
-Remove other portal ghost fix plugins when enabling the built-in feature. If any is still installed, Better Networking detects the plugin GUID and leaves its own workaround disabled to prevent duplicate sends.
+Remove `Sfantul-PortalGhostFix` when enabling the built-in feature. If it is still installed, Better Networking detects the plugin GUID and leaves its own workaround disabled to prevent duplicate sends.
 
 This feature does not change portal logic, player ownership, status-effect duration, combat state, or world saves.
 
+Armor/item stand attachment delay and chest open-state visuals are not patched in this release. Their Valheim code uses ownership hand-off plus separate visual RPC/ZDO updates, and the current investigation did not show a Better Networking-specific fault. The mod avoids changing those ownership paths without a reproducible failing packet trace.
+
 ## Startup log
 
-For Valheim 1.0.12 - 1.0.15, a normal startup should include:
+For Valheim 1.0.12 through 1.0.15, a normal startup should include:
 
 ```text
 Valheim compatibility verified: 1.0.15, network version 40
@@ -149,7 +194,7 @@ A normal Windows build:
 
 - generates the plugin version from `PluginVersion`;
 - copies the DLL into the selected r2modman profile;
-- creates `dist\BetterNetworking_Valheim-1.2.0.zip`.
+- creates `dist\BetterNetworking_Valheim-1.3.0.zip`.
 
 For a portable build, place the required game assemblies in `libs/` and run:
 
