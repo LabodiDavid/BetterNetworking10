@@ -69,7 +69,7 @@ namespace DIT.BetterNetworking10
                 LegacyConfigMigration.TryImport(Config, Log);
 
             GameVersion minimum = new GameVersion(1, 0, 12);
-            GameVersion latestAudited = new GameVersion(1, 0, 15);
+            GameVersion latestAudited = new GameVersion(1, 0, 17);
             if (Version.c_networkVersion != 40 || Version.CurrentVersion < minimum || Version.CurrentVersion > latestAudited)
                 Log.Warning($"This build supports the audited Valheim range {minimum}-{latestAudited} with network version 40; running {Version.CurrentVersion} / network {Version.c_networkVersion}. Check PATCH FAILED messages and retest networking after game updates.");
             else
