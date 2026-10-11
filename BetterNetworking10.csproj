@@ -17,7 +17,7 @@
     <ValheimPath>D:\SteamLibrary\steamapps\common\Valheim</ValheimPath>
     <R2ProfileName>Default</R2ProfileName>
 
-    <R2BasePath>$(APPDATA)\r2modmanPlus-local\Valheim\profiles\$(R2ProfileName)</R2BasePath>
+    <R2BasePath>$(APPDATA)\com.kesomannen.gale\valheim\profiles\$(R2ProfileName)</R2BasePath>
     <BepInExPath>$(R2BasePath)\BepInEx</BepInExPath>
     <PluginPath>$(BepInExPath)\plugins\BetterNetworking_Valheim</PluginPath>
     <ValheimManagedPath>$(ValheimPath)\valheim_Data\Managed</ValheimManagedPath>
