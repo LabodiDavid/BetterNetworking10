@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+- Rebuilt for Valheim 1.0.21 (network version 41) & BepInExPack 5.4.2360.
+- Includes the optional [Conditional Config Sync](https://thunderstore.io/c/valheim/p/shudnal/ConditionalConfigSync) integration and crossplay force initialization fix from 1.3.0, which was released on GitHub only.
+
 ## 1.3.0
 
 - Added optional support for [Conditional Config Sync](https://thunderstore.io/c/valheim/p/shudnal/ConditionalConfigSync) 1.0.10 and newer.

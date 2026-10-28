@@ -3,7 +3,7 @@
 An updated networking mod for **Valheim 1.0**, based on
 [CW-Jesse's Better Networking](https://github.com/CW-Jesse/valheim-betternetworking).
 
-This is not an official continuation of the original project. It is a compatibility-focused fork compiled against **Valheim 1.0.12** and runtime-audited through **Valheim 1.0.15** (`network version 40`).
+This is not an official continuation of the original project. Version **1.3.1** is compiled against **Valheim 1.0.21** (`network version 41`).
 
 ## Do you need this on Valheim 1.0?
 
@@ -169,10 +169,10 @@ Armor/item stand attachment delay and chest open-state visuals are not patched i
 
 ## Startup log
 
-For Valheim 1.0.12 through 1.0.15, a normal startup should include:
+For Valheim 1.0.21, startup should include:
 
 ```text
-Valheim compatibility verified: 1.0.15, network version 40
+Valheim target version matched: 1.0.21, compiled against network version 41
 Patch audit complete
 ```
 
@@ -184,8 +184,8 @@ The project defaults to:
 
 ```text
 Valheim:    D:\SteamLibrary\steamapps\common\Valheim
-r2modman:   Default profile
-Plugin:     %APPDATA%\r2modmanPlus-local\Valheim\profiles\Default\BepInEx\plugins\BetterNetworking10
+Gale:       Default profile
+Plugin:     %APPDATA%\com.kesomannen.gale\valheim\profiles\Default\BepInEx\plugins\BetterNetworking_Valheim
 ```
 
 Change `ValheimPath` or `R2ProfileName` in `BetterNetworking10.csproj` if required.
@@ -193,8 +193,8 @@ Change `ValheimPath` or `R2ProfileName` in `BetterNetworking10.csproj` if requir
 A normal Windows build:
 
 - generates the plugin version from `PluginVersion`;
-- copies the DLL into the selected r2modman profile;
-- creates `dist\BetterNetworking_Valheim-1.3.0.zip`.
+- copies the DLL into the selected Gale profile (disable with `-p:DeployToR2Modman=false`);
+- creates `dist\BetterNetworking_Valheim-1.3.1.zip`.
 
 For a portable build, place the required game assemblies in `libs/` and run:
 

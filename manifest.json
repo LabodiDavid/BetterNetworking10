@@ -4,6 +4,6 @@
   "website_url": "https://github.com/LabodiDavid/BetterNetworking10",
   "description": "Valheim 1.0 networking fork with guarded runtime patches, optional Conditional Config Sync support, and a server-side portal ghost workaround.",
   "dependencies": [
-    "denikson-BepInExPack_Valheim-5.4.2350"
+    "denikson-BepInExPack_Valheim-5.4.2360"
   ]
 }

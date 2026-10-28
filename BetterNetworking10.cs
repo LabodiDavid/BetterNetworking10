@@ -68,12 +68,11 @@ namespace DIT.BetterNetworking10
             if (shouldImportLegacyConfig)
                 LegacyConfigMigration.TryImport(Config, Log);
 
-            GameVersion minimum = new GameVersion(1, 0, 12);
-            GameVersion latestAudited = new GameVersion(1, 0, 17);
-            if (Version.c_networkVersion != 40 || Version.CurrentVersion < minimum || Version.CurrentVersion > latestAudited)
-                Log.Warning($"This build supports the audited Valheim range {minimum}-{latestAudited} with network version 40; running {Version.CurrentVersion} / network {Version.c_networkVersion}. Check PATCH FAILED messages and retest networking after game updates.");
+            GameVersion targetVersion = new GameVersion(1, 0, 21);
+            if (Version.CurrentVersion < targetVersion || Version.CurrentVersion > targetVersion)
+                Log.Warning($"This build targets Valheim {targetVersion}, compiled against network version {Version.c_networkVersion}; running {Version.CurrentVersion}. Check PATCH FAILED messages and retest networking after game updates.");
             else
-                Log.Message($"Valheim compatibility verified: {Version.CurrentVersion}, network version {Version.c_networkVersion}");
+                Log.Message($"Valheim target version matched: {Version.CurrentVersion}, compiled against network version {Version.c_networkVersion}");
 
             _harmony = new Harmony(PluginGuid);
             PatchInstaller.Install(_harmony);
