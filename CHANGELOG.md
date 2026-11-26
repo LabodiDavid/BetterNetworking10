@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2
+
+- Rebuilt for Valheim 1.0.31 (network version 42). This hotfix keeps network version 42 and remains network-compatible with 1.0.30.
+- Re-audited Harmony target signatures and IL patterns against the 1.0.31 assemblies. The only change relevant to this mod is `Version.CurrentVersion`; 1.0.31 also contains unrelated Build UI and achievement fixes that do not touch any patch target, so no patch-logic changes were required.
+
 ## 1.3.1
 
 - Rebuilt for Valheim 1.0.21 (network version 41) & BepInExPack 5.4.2360.
