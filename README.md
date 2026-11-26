@@ -3,7 +3,7 @@
 An updated networking mod for **Valheim 1.0**, based on
 [CW-Jesse's Better Networking](https://github.com/CW-Jesse/valheim-betternetworking).
 
-This is not an official continuation of the original project. Version **1.3.2** is compiled against **Valheim 1.0.30** (`network version 42`).
+This is not an official continuation of the original project. Version **1.3.2** is compiled against **Valheim 1.0.31** (`network version 42`).
 
 ## Do you need this on Valheim 1.0?
 
@@ -169,10 +169,10 @@ Armor/item stand attachment delay and chest open-state visuals are not patched i
 
 ## Startup log
 
-For Valheim 1.0.30, startup should include:
+For Valheim 1.0.31, startup should include:
 
 ```text
-Valheim target version matched: 1.0.30, compiled against network version 42
+Valheim target version matched: 1.0.31, compiled against network version 42
 Patch audit complete
 ```
 

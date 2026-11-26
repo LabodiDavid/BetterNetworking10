@@ -68,7 +68,7 @@ namespace DIT.BetterNetworking10
             if (shouldImportLegacyConfig)
                 LegacyConfigMigration.TryImport(Config, Log);
 
-            GameVersion targetVersion = new GameVersion(1, 0, 30);
+            GameVersion targetVersion = new GameVersion(1, 0, 31);
             if (Version.CurrentVersion < targetVersion || Version.CurrentVersion > targetVersion)
                 Log.Warning($"This build targets Valheim {targetVersion}, compiled against network version {Version.c_networkVersion}; running {Version.CurrentVersion}. Check PATCH FAILED messages and retest networking after game updates.");
             else
